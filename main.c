@@ -23,6 +23,7 @@
 #include <sys/stat.h>   // fstat()
 #include <fcntl.h>      // open()
 #include <unistd.h>     // close()
+#include <stdbool.h>
 
 #include "chip8.h"
 #include "log.h"
@@ -32,8 +33,12 @@ static void print_usage(const char *exe_name)
     printf("\
 Usage: %s [OPTION]... FILE\n\n\
 Options:\n\
-\t-h\toutput this help message and exit\n\
-\t-v\toutput version information and exit\n\
+\t-m MODE\t\tselect operation mode\n\t\t\t  valid modes are \"emu\" and \"disasm\"\n\
+\t-h\t\toutput this help message and exit\n\
+\t-v\t\toutput version information and exit\n\n\
+Disassembler options\n\
+\t-a\t\toutput addresses with disassembly\n\
+\t-i\t\toutput raw instructions with disassembly\n\
 ", exe_name);
 }
 
@@ -48,18 +53,48 @@ There is NO WARRANTY, to the extent permitted by law.\n\
 ", HNC8_VERSION);
 }
 
+typedef enum {
+    MODE_DISASM,
+    MODE_EMULATOR
+} mode_e;
+
 int main(int argc, char **argv)
 {
     int opt;
+    mode_e mode = MODE_EMULATOR;
+    bool opt_da_addr = false;
+    bool opt_da_instr = false;
 
-    while((opt = getopt(argc, argv, "hv")) != -1) {
+    while((opt = getopt(argc, argv, "hvm:ai")) != -1) {
         switch(opt) {
+            /* General options */
+            case ':':
+                print_usage(argv[0]);
+                LOG_ERROR("Missing argument value\n");
+                break;
             case 'h':
                 print_usage(argv[0]);
                 return 0;
             case 'v':
                 print_version();
                 return 0;
+            case 'm': /* Mode option */
+                switch(optarg[0]) {
+                    case 'e': /* emulator mode */
+                        mode = MODE_EMULATOR;
+                        break;
+                    case 'd': /* disassembler mode */
+                        mode = MODE_DISASM;
+                        break;
+                }
+                break;
+            /* Disassembler specific options */
+            case 'a':
+                opt_da_addr = true;
+                break;
+            case 'i':
+                opt_da_instr = true;
+                break;
         }
     }
 
@@ -88,9 +123,20 @@ int main(int argc, char **argv)
 
     LOG_DEBUG("Loaded ROM %s, size %hu bytes\n", argv[optind], input_sz);
 
-    for(uint16_t i = 0; i < input_sz; ++i) {
-        const uint16_t opcode = ((input_mem[i] & 0xFF00) >> 8) | ((input_mem[i] & 0xFF) << 8);
-        printf("%04X:%04X %s\n", i, opcode, ch8_disassemble(opcode));
+    switch(mode) {
+        case MODE_DISASM:
+            for(uint16_t i = 0; i < input_sz; ++i) {
+                uint8_t op_h = input_mem[i] & 0xFF;
+                uint8_t op_l = (input_mem[i] & 0xFF00) >> 8;
+                uint16_t opcode = (op_h << 8) | op_l;
+
+                if(opt_da_addr) printf("%04X:    ", i + VM_EXEC_START_ADDR);
+                if(opt_da_instr) printf("%02X %02X    ", op_h, op_l);
+                printf("%s\n", ch8_disassemble(opcode));
+            }
+            break;
+        case MODE_EMULATOR:
+            break;
     }
 
     munmap(input_mem, input_sz);

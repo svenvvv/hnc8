@@ -21,6 +21,37 @@
 
 #include <stdint.h>
 
+
+#define VM_EXEC_START_ADDR  0x200
+#define VM_RAM_SIZE         4096
+#define VM_SCREEN_WIDTH     64
+#define VM_SCREEN_HEIGHT    32
+
+typedef struct {
+    /* Registers */
+    uint8_t v[16];
+    uint16_t i;
+    uint16_t pc;
+    uint16_t sp;
+    /* Timers */
+    uint8_t tim_delay;
+    uint8_t tim_sound;
+    /* Memory */
+    uint8_t vram[VM_SCREEN_WIDTH * VM_SCREEN_HEIGHT];
+    uint8_t ram[VM_RAM_SIZE];
+} ch8_t;
+
+/*
+ * Disassemble opcode into mnemonics and operands.
+ *
+ * Params
+ *  opcode  - 2 byte opcode to disassemble.
+ *
+ * Returns
+ *  pointer to zero terminated string.
+ * NOTE: the string pointed to is only guaranteed to be valid until the
+ * next call to ch8_disassemble, at which point it may be overwritten.
+ */
 const char *ch8_disassemble(uint16_t opcode);
 
 #endif // CHIP8_H

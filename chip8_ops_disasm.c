@@ -227,5 +227,5 @@ const char *ch8_disassemble(uint16_t opcode)
 {
     uint8_t op_index = opcode >> 12;
     (*ch8_opcode_lut[op_index])(opcode);
-    return(g_disasm_buf);
+    return g_disasm_buf;
 }
