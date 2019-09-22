@@ -24,6 +24,7 @@
 #include <fcntl.h>      // open()
 #include <unistd.h>     // close()
 
+#include "chip8.h"
 #include "log.h"
 
 static void print_usage(const char *exe_name)
@@ -77,7 +78,7 @@ int main(int argc, char **argv)
 
     struct stat st;
     fstat(input_fd, &st);
-    size_t input_sz = st.st_size;
+    uint16_t input_sz = st.st_size;
 
     uint16_t *input_mem = mmap(0, input_sz, PROT_READ, MAP_PRIVATE, input_fd, 0);
     if(input_mem == MAP_FAILED) {
@@ -85,7 +86,12 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    LOG_DEBUG("Loaded ROM %s, size %zu bytes\n", argv[optind], input_sz);
+    LOG_DEBUG("Loaded ROM %s, size %hu bytes\n", argv[optind], input_sz);
+
+    for(uint16_t i = 0; i < input_sz; ++i) {
+        const uint16_t opcode = ((input_mem[i] & 0xFF00) >> 8) | ((input_mem[i] & 0xFF) << 8);
+        printf("%04X:%04X %s\n", i, opcode, ch8_disassemble(opcode));
+    }
 
     munmap(input_mem, input_sz);
     close(input_fd);
