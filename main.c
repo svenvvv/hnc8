@@ -51,10 +51,8 @@ int main(int argc, char **argv)
 {
     int opt;
 
-    while((opt = getopt(argc, argv, "hv")) != -1)
-    {
-        switch(opt)
-        {
+    while((opt = getopt(argc, argv, "hv")) != -1) {
+        switch(opt) {
             case 'h':
                 print_usage(argv[0]);
                 return 0;
