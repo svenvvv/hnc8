@@ -17,5 +17,37 @@
  */
 
 #include "chip8.h"
+#include <assert.h>
+#include <string.h>
 
+void ch8_load(ch8_t* vm, const uint16_t* rom, uint16_t rom_sz)
+{
+    assert(vm != NULL);
+    assert(rom != NULL);
+
+    memset(vm, 0, sizeof(*vm));
+    memcpy(vm->ram + VM_EXEC_START_ADDR, rom, rom_sz);
+
+    vm->pc = VM_EXEC_START_ADDR;
+}
+
+void ch8_tick(ch8_t* vm)
+{
+    assert(vm != NULL);
+
+    uint16_t opcode = (vm->ram[vm->pc] << 8) | vm->ram[vm->pc + 1];
+    ch8_exec(vm, opcode);
+}
+
+void ch8_tick_timers(ch8_t* vm)
+{
+    assert(vm != NULL);
+
+    if(vm->tim_delay > 0) {
+        vm->tim_delay -= 1;
+    }
+    if(vm->tim_sound > 0) {
+        vm->tim_sound -= 1;
+    }
+}
 

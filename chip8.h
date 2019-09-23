@@ -42,6 +42,27 @@ typedef struct {
 } ch8_t;
 
 /*
+ * Reset the VM core and load rom into VM memory.
+ *
+ * Params:
+ *  rom     - pointer to file contents,
+ *  rom_sz  - amount of bytes to read.
+ */
+void ch8_load(ch8_t *vm, const uint16_t *rom, uint16_t rom_sz);
+
+/*
+ * Execute a single instruction
+ */
+void ch8_tick(ch8_t *vm);
+
+/*
+ * Increment timer registers
+ *
+ * NOTE: this function MUST be called at a frequency of 60hz
+ */
+void ch8_tick_timers(ch8_t *vm);
+
+/*
  * Disassemble opcode into mnemonics and operands.
  *
  * Params
@@ -53,5 +74,13 @@ typedef struct {
  * next call to ch8_disassemble, at which point it may be overwritten.
  */
 const char *ch8_disassemble(uint16_t opcode);
+
+/*
+ * Execute a single instruction in VM
+ *
+ * Params
+ *  opcode  - 2 byte opcode to execute.
+ */
+void ch8_exec(ch8_t *vm, uint16_t opcode);
 
 #endif // CHIP8_H

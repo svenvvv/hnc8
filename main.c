@@ -18,6 +18,7 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <getopt.h>     // getopt()
 #include <sys/mman.h>   // mmap()
 #include <sys/stat.h>   // fstat()
@@ -28,35 +29,59 @@
 #include "chip8.h"
 #include "log.h"
 
-static void print_usage(const char *exe_name)
-{
-    printf("\
+const char *usage_general = "\
 Usage: %s [OPTION]... FILE\n\n\
 Options:\n\
 \t-m MODE\t\tselect operation mode\n\t\t\t  valid modes are \"emu\" and \"disasm\"\n\
 \t-h\t\toutput this help message and exit\n\
-\t-v\t\toutput version information and exit\n\n\
-Disassembler options\n\
+\t-v\t\toutput version information and exit\n\
+\n";
+
+const char *usage_disasm = "\
+Disassembler options:\n\
 \t-a\t\toutput addresses with disassembly\n\
 \t-i\t\toutput raw instructions with disassembly\n\
-", exe_name);
-}
+\n";
 
-static void print_version(void)
-{
-    printf("\
+const char *usage_emu = "\
+Emulator options:\n\
+\n";
+
+const char *version_text = "\
 hnc8 %s\n\
 Copyright (C) 2019 hundinui.\n\
 License GPLv3+: GNU GPL version 3 or later <https://gnu.org/licenses/gpl.html>.\n\
 This is free software: you are free to change and redistribute it.\n\
 There is NO WARRANTY, to the extent permitted by law.\n\
-", HNC8_VERSION);
+";
+
+static void print_usage(const char *exe_name)
+{
+    printf(usage_general, exe_name);
+    printf("%s", usage_disasm);
+    printf("%s", usage_emu);
+}
+
+static void print_version(void)
+{
+    printf(version_text, HNC8_VERSION);
 }
 
 typedef enum {
     MODE_DISASM,
     MODE_EMULATOR
 } mode_e;
+
+static void emu_loop(const uint16_t *rom, uint16_t rom_sz)
+{
+    ch8_t vm;
+    ch8_load(&vm, rom, rom_sz);
+
+    do {
+        ch8_tick(&vm);
+        ch8_tick_timers(&vm);
+    } while(true);
+}
 
 int main(int argc, char **argv)
 {
@@ -71,7 +96,7 @@ int main(int argc, char **argv)
             case ':':
                 print_usage(argv[0]);
                 LOG_ERROR("Missing argument value\n");
-                break;
+                return 1;
             case 'h':
                 print_usage(argv[0]);
                 return 0;
@@ -82,17 +107,25 @@ int main(int argc, char **argv)
                 switch(optarg[0]) {
                     case 'e': /* emulator mode */
                         mode = MODE_EMULATOR;
+                        LOG_DEBUG("Emulator mode\n");
                         break;
                     case 'd': /* disassembler mode */
                         mode = MODE_DISASM;
+                        LOG_DEBUG("Disassembler mode\n");
                         break;
+                    default:
+                        print_usage(argv[0]);
+                        LOG_ERROR("Invalid mode: %s\n", optarg);
+                        return 1;
                 }
                 break;
             /* Disassembler specific options */
             case 'a':
+                LOG_DEBUG("Outputting addresses in disasm\n");
                 opt_da_addr = true;
                 break;
             case 'i':
+                LOG_DEBUG("Outputting instructions in disasm\n");
                 opt_da_instr = true;
                 break;
         }
@@ -136,6 +169,7 @@ int main(int argc, char **argv)
             }
             break;
         case MODE_EMULATOR:
+            emu_loop(input_mem, input_sz);
             break;
     }
 
