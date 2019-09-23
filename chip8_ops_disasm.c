@@ -20,10 +20,12 @@
 #include <stdint.h>
 #include "log.h"
 
-#define SETTXT(...)         sprintf(g_disasm_buf, __VA_ARGS__)
+#define DISASM_BUF_SZ 32
+
+#define SETTXT(...)         snprintf(g_disasm_buf, DISASM_BUF_SZ, __VA_ARGS__)
 #define UNKNOWN_OP(opcode)  SETTXT("UNKNOWN"); LOG_ERROR("UNKNOWN OPCODE %04X", opcode)
 
-static char g_disasm_buf[32];
+static char g_disasm_buf[DISASM_BUF_SZ];
 
 static void ops_x0(uint16_t opcode)
 {
