@@ -227,7 +227,7 @@ int main(void)
             vm.v[1] = 0xF0;
             ch8_exec(&vm, 0x8012);
 
-            EXPECT(vm.v[0] == 0x0F);
+            EXPECT(vm.v[0] == 0xF0);
         );
 
         TEST(
@@ -244,7 +244,7 @@ int main(void)
             name = "ADD reg";
 
             vm.v[0] = 0xFF;
-            vm.v[1] = 10;
+            vm.v[1] = 11;
             ch8_exec(&vm, 0x8014);
 
             EXPECT(vm.v[0] == 10);
@@ -344,7 +344,7 @@ int main(void)
     {
         TESTGROUP("0xCxxx");
         TEST(
-            name = "JP V0";
+            name = "RND";
 
             vm.v[0] = 0x00;
             ch8_exec(&vm, 0xC0FF);
@@ -436,41 +436,23 @@ int main(void)
         TEST(
             name = "LD [I], Vx";
 
-            vm.v[0] = 'h';
-            vm.v[1] = 'e';
-            vm.v[2] = 'l';
-            vm.v[3] = 'l';
-            vm.v[4] = 'o';
-            vm.v[5] = ' ';
-            vm.v[6] = 'c';
-            vm.v[7] = 'h';
-            vm.v[8] = 'i';
-            vm.v[9] = 'p';
-            vm.v[10] = '8';
-            vm.v[11] = 0;
+            memset(vm.v, 0xFF, 16);
+            strncpy((char*)vm.v, "hello chip8", 12);
             ch8_exec(&vm, 0xFC55);
 
             EXPECT(strncmp((char*)vm.ram, "hello chip8", 12) == 0);
+            EXPECT(memcmp(vm.ram + 12, ram_zero, VM_RAM_SIZE - 12) == 0);
         );
 
         TEST(
             name = "LD [I], Vx";
 
-            strncpy(vm.ram, "hello chip8", 12);
+            memset(vm.ram, 0xFF, VM_RAM_SIZE);
+            strncpy((char*)vm.ram, "hello chip8", 12);
             ch8_exec(&vm, 0xFC65);
 
-            EXPECT(vm.v[0] == 'h');
-            EXPECT(vm.v[1] == 'e');
-            EXPECT(vm.v[2] == 'l');
-            EXPECT(vm.v[3] == 'l');
-            EXPECT(vm.v[4] == 'o');
-            EXPECT(vm.v[5] == ' ');
-            EXPECT(vm.v[6] == 'c');
-            EXPECT(vm.v[7] == 'h');
-            EXPECT(vm.v[8] == 'i');
-            EXPECT(vm.v[9] == 'p');
-            EXPECT(vm.v[10] == '8');
-            EXPECT(vm.v[11] == 0);
+            EXPECT(strncmp((char*)vm.v, "hello chip8", 12) == 0);
+            EXPECT(memcmp(vm.v + 12, ram_zero, 6) == 0);
         );
     }
 

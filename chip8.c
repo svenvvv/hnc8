@@ -19,6 +19,8 @@
 #include "chip8.h"
 #include <assert.h>
 #include <string.h>
+#include <stdlib.h>
+#include <time.h>
 
 void ch8_load(ch8_t* vm, const uint16_t* rom, uint16_t rom_sz)
 {
@@ -29,6 +31,9 @@ void ch8_load(ch8_t* vm, const uint16_t* rom, uint16_t rom_sz)
     memcpy(vm->ram + VM_EXEC_START_ADDR, rom, rom_sz);
 
     vm->pc = VM_EXEC_START_ADDR;
+
+    /* Seed rand() for RND opcode */
+    srand(time(NULL));
 }
 
 void ch8_tick(ch8_t* vm)

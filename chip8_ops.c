@@ -18,13 +18,16 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include <string.h>
+#include <stdlib.h>
 #include "log.h"
 #include "chip8.h"
 
-#define SETTXT(...)         printf(__VA_ARGS__)
+#define SETTXT(...)
 #define UNKNOWN_OP(opcode)  SETTXT("UNKNOWN"); LOG_ERROR("UNKNOWN OPCODE %04X", opcode)
 
-static char g_disasm_buf[32];
+#define SETVF vm->v[0xF] = 1
+#define CLRVF vm->v[0xF] = 0
 
 static void ops_x0(ch8_t *vm, uint16_t opcode)
 {
@@ -32,15 +35,14 @@ static void ops_x0(ch8_t *vm, uint16_t opcode)
         case 0xE:
             switch(opcode & 0x000F) {
                 case 0x0:
-                    SETTXT("CLS");
+                    memset(vm->vram, 0, VM_SCREEN_WIDTH * VM_SCREEN_HEIGHT);
                     break;
                 case 0xE:
-                    SETTXT("RET");
+                    vm->pc = vm->stack[--vm->sp];
                     break;
             }
             break;
         case 0x0:
-            SETTXT("NOP");
             break;
         default:
             UNKNOWN_OP(opcode);
@@ -50,74 +52,108 @@ static void ops_x0(ch8_t *vm, uint16_t opcode)
 
 static void jp(ch8_t *vm, uint16_t opcode) {
     uint16_t addr = opcode & 0x0FFF;
-    SETTXT("JP 0x%04X", addr);
+    vm->pc = addr;
 }
 
 static void call(ch8_t *vm, uint16_t opcode) {
     uint16_t addr = opcode & 0x0FFF;
-    SETTXT("CALL 0x%04X", addr);
+    vm->stack[vm->sp++] = vm->pc;
+    vm->pc = addr;
 }
 
 static void se_vi(ch8_t *vm, uint16_t opcode) {
     uint8_t reg = (opcode & 0x0F00) >> 8;
     uint8_t imm = opcode & 0x00FF;
-    SETTXT("SE V%X, %u", reg, imm);
+    if(vm->v[reg] == imm) {
+        vm->pc += 2;
+    }
 }
 
 static void sne_vi(ch8_t *vm, uint16_t opcode) {
     uint8_t reg = (opcode & 0x0F00) >> 8;
     uint8_t imm = opcode & 0x00FF;
-    SETTXT("SNE V%X, %u", reg, imm);
+    if(vm->v[reg] != imm) {
+        vm->pc += 2;
+    }
 }
 
 static void se_vv(ch8_t *vm, uint16_t opcode) {
     uint8_t rega = (opcode & 0x0F00) >> 8;
     uint8_t regb = (opcode & 0x00F0) >> 4;
-    SETTXT("SE V%X, V%X", rega, regb);
+    if(vm->v[rega] == vm->v[regb]) {
+        vm->pc += 2;
+    }
 }
 
 static void ld_vi(ch8_t *vm, uint16_t opcode) {
     uint8_t reg = (opcode & 0x0F00) >> 8;
     uint8_t imm = opcode & 0x00FF;
-    SETTXT("LD V%X, %u", reg, imm);
+    vm->v[reg] = imm;
 }
 
 static void add(ch8_t *vm, uint16_t opcode) {
     uint8_t reg = (opcode & 0x0F00) >> 8;
     uint8_t imm = opcode & 0x00FF;
-    SETTXT("ADD V%X, %u", reg, imm);
+    vm->v[reg] += imm;
 }
 
 static void ops_x8(ch8_t *vm, uint16_t opcode) {
     uint8_t rega = (opcode & 0x0F00) >> 8;
     uint8_t regb = (opcode & 0x00F0) >> 4;
+    uint16_t result;
     switch(opcode & 0x000F) {
         case 0:
-            SETTXT("LD V%X, V%X", rega, regb);
+            vm->v[rega] = vm->v[regb];
             break;
         case 1:
-            SETTXT("OR V%X, V%X", rega, regb);
+            vm->v[rega] |= vm->v[regb];
             break;
         case 2:
-            SETTXT("AND V%X, V%X", rega, regb);
+            vm->v[rega] &= vm->v[regb];
             break;
         case 3:
-            SETTXT("XOR V%X, V%X", rega, regb);
+            vm->v[rega] ^= vm->v[regb];
             break;
         case 4:
-            SETTXT("ADD V%X, V%X", rega, regb);
+            result = vm->v[rega] + vm->v[regb];
+            if(result > 0xFF) {
+                SETVF;
+            } else {
+                CLRVF;
+            }
+            vm->v[rega] = result;
             break;
         case 5:
-            SETTXT("SUB V%X, V%X", rega, regb);
+            if(vm->v[rega] > vm->v[regb]) {
+                SETVF;
+            } else {
+                CLRVF;
+            }
+            vm->v[rega] -= vm->v[regb];
             break;
         case 6:
-            SETTXT("SHR V%X, V%X", rega, regb);
+            if(vm->v[rega] & 1) {
+                SETVF;
+            } else {
+                CLRVF;
+            }
+            vm->v[rega] = vm->v[rega] >> 1;
             break;
         case 7:
-            SETTXT("SUBN V%X, V%X", rega, regb);
+            if(vm->v[regb] > vm->v[rega]) {
+                SETVF;
+            } else {
+                CLRVF;
+            }
+            vm->v[rega] = vm->v[regb] - vm->v[rega];
             break;
         case 0xE:
-            SETTXT("SHL V%X, V%X", rega, regb);
+            if(vm->v[rega] & 0x80) {
+                SETVF;
+            } else {
+                CLRVF;
+            }
+            vm->v[rega] = vm->v[rega] << 1;
             break;
         default:
             UNKNOWN_OP(opcode);
@@ -128,23 +164,25 @@ static void ops_x8(ch8_t *vm, uint16_t opcode) {
 static void sne_vv(ch8_t *vm, uint16_t opcode) {
     uint8_t rega = (opcode & 0x0F00) >> 8;
     uint8_t regb = (opcode & 0x00F0) >> 4;
-    SETTXT("SNE V%X, V%X", rega, regb);
+    if(vm->v[rega] != vm->v[regb]) {
+        vm->pc += 2;
+    }
 }
 
 static void ld_i(ch8_t *vm, uint16_t opcode) {
     uint16_t addr = opcode & 0x0FFF;
-    SETTXT("LD I, 0x%04X", addr);
+    vm->i = addr;
 }
 
 static void jp_v(ch8_t *vm, uint16_t opcode) {
     uint16_t addr = opcode & 0x0FFF;
-    SETTXT("JP V0, %04X", addr);
+    vm->pc = vm->v[0] + addr;
 }
 
 static void rnd(ch8_t *vm, uint16_t opcode) {
     uint8_t reg = (opcode & 0x0F00) >> 8;
     uint8_t imm = opcode & 0x00FF;
-    SETTXT("RND V%X, %u", reg, imm);
+    vm->v[reg] = rand() & imm;
 }
 
 static void drw(ch8_t *vm, uint16_t opcode) {
@@ -173,19 +211,19 @@ static void ops_xF(ch8_t *vm, uint16_t opcode) {
     uint8_t reg = (opcode & 0x0F00) >> 8;
     switch(opcode & 0xFF) {
         case 0x07:
-            SETTXT("LD V%X, DT", reg);
+            vm->v[reg] = vm->tim_delay;
             break;
         case 0x0A:
             SETTXT("LD V%X, K", reg);
             break;
         case 0x15:
-            SETTXT("LD DT, V%X", reg);
+            vm->tim_delay = vm->v[reg];
             break;
         case 0x18:
-            SETTXT("LD ST, V%X", reg);
+            vm->tim_sound = vm->v[reg];
             break;
         case 0x1E:
-            SETTXT("ADD I, V%X", reg);
+            vm->i += vm->v[reg];
             break;
         case 0x29:
             SETTXT("LD F, V%X", reg);
@@ -194,10 +232,10 @@ static void ops_xF(ch8_t *vm, uint16_t opcode) {
             SETTXT("LD B, V%X", reg);
             break;
         case 0x55:
-            SETTXT("LD [I], V%X", reg);
+            memcpy(vm->ram + vm->i, vm->v, reg);
             break;
         case 0x65:
-            SETTXT("LD V%X, [I]", reg);
+            memcpy(vm->v, vm->ram + vm->i, reg);
             break;
         default:
             UNKNOWN_OP(opcode);
