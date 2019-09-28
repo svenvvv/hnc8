@@ -20,14 +20,12 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <getopt.h>     // getopt()
-#include <sys/mman.h>   // mmap()
-#include <sys/stat.h>   // fstat()
-#include <fcntl.h>      // open()
-#include <unistd.h>     // close()
 #include <stdbool.h>
 
 #include "chip8.h"
 #include "log.h"
+#include "chip8_dbg_server.h"
+#include "file.h"
 
 const char *usage_general = "\
 Usage: %s [OPTION]... FILE\n\n\
@@ -69,7 +67,8 @@ static void print_version(void)
 
 typedef enum {
     MODE_DISASM,
-    MODE_EMULATOR
+    MODE_EMULATOR,
+    MODE_DEBUG
 } mode_e;
 
 static void emu_loop(const uint16_t *rom, uint16_t rom_sz)
@@ -89,8 +88,9 @@ int main(int argc, char **argv)
     mode_e mode = MODE_EMULATOR;
     bool opt_da_addr = false;
     bool opt_da_instr = false;
+    int opt_dbg_port = 8888;
 
-    while((opt = getopt(argc, argv, "hvm:ai")) != -1) {
+    while((opt = getopt(argc, argv, "hvm:aip:")) != -1) {
         switch(opt) {
             /* General options */
             case ':':
@@ -113,6 +113,10 @@ int main(int argc, char **argv)
                         mode = MODE_DISASM;
                         LOG_DEBUG("Disassembler mode\n");
                         break;
+                    case 's':
+                        mode = MODE_DEBUG;
+                        LOG_DEBUG("Debug Server mode\n");
+                        break;
                     default:
                         print_usage(argv[0]);
                         LOG_ERROR("Invalid mode: %s\n", optarg);
@@ -128,7 +132,17 @@ int main(int argc, char **argv)
                 LOG_DEBUG("Outputting instructions in disasm\n");
                 opt_da_instr = true;
                 break;
+            /* Debug server options */
+            case 'p':
+                opt_dbg_port = (uint16_t)strtol(optarg, NULL, 10);
+                break;
         }
+    }
+
+    /* break out to debug mode here because we don't want to load a file yet */
+    if(mode == MODE_DEBUG) {
+        dbg_server_loop(opt_dbg_port);
+        return 0;
     }
 
     uint8_t extra_args = argc - optind;
@@ -138,19 +152,9 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    int input_fd = open(argv[optind], O_RDONLY);
-    if(input_fd == -1) {
-        LOG_ERROR("Error opening input file\n");
-        return 1;
-    }
-
-    struct stat st;
-    fstat(input_fd, &st);
-    uint16_t input_sz = st.st_size;
-
-    uint16_t *input_mem = mmap(0, input_sz, PROT_READ, MAP_PRIVATE, input_fd, 0);
-    if(input_mem == MAP_FAILED) {
-        fprintf(stderr, "Error reading input file\n");
+    size_t input_sz;
+    uint16_t *input_mem;
+    if(load_file(argv[optind], &input_mem, &input_sz) != 0) {
         return 1;
     }
 
@@ -171,10 +175,12 @@ int main(int argc, char **argv)
         case MODE_EMULATOR:
             emu_loop(input_mem, input_sz);
             break;
+        case MODE_DEBUG:
+            LOG_ERROR("this should not happen\n");
+            break;
     }
 
-    munmap(input_mem, input_sz);
-    close(input_fd);
+    unload_file(input_mem, input_sz);
 
     return 0;
 }
