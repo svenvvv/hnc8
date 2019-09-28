@@ -37,6 +37,7 @@
  */
 #define TEST(...) \
 { \
+    __COUNTER__; \
     int test_fail_line = 0; \
     char test_fail_expr[256]; \
     const char *name; \
@@ -45,7 +46,7 @@
     __VA_ARGS__ \
     const int test_name_len = strlen(name);\
     printf("    %s:%*s\n", name, TERM_COLUMNS - test_name_len - 20, test ? COL_GRN "✓ PASS" COL_RST : COL_RED "✗ FAIL" COL_RST); \
-    if(test_fail_line) { printf("      " COL_RED "Failed at expression \"%s\" on line %i\n" COL_RST, test_fail_expr, test_fail_line); } \
+    if(test_fail_line) { printf("      " COL_RED "Failed at expression \"%s\" on line %i\n" COL_RST, test_fail_expr, test_fail_line); failed_tests_count++; } \
 }
 
 /* lazy hack :) */
@@ -58,6 +59,8 @@ const char *group_sep_symbol = \
 if(!(__VA_ARGS__)) { test = false; test_fail_line = __LINE__; sprintf(test_fail_expr, "%s", PPSTR(__VA_ARGS__)); }
 
 static const uint8_t ram_zero[VM_RAM_SIZE] = { 0 };
+
+static int failed_tests_count = 0;
 
 int main(void)
 {
@@ -382,7 +385,7 @@ int main(void)
 
             vm.v[0] = 0;
             vm.keys[0] = 0;
-            ch8_exec(&vm, 0xE09E);
+            ch8_exec(&vm, 0xE0A1);
 
             EXPECT(vm.pc == 2);
         );
@@ -399,7 +402,17 @@ int main(void)
             EXPECT(vm.v[0] == 0xBA);
         );
 
-        /* TODO: LD Vx, K not tested FIXME? */
+        TEST(
+            name = "LD Vx, K";
+
+            vm.v[0] = 0;
+            ch8_exec(&vm, 0xF00A);
+            EXPECT(vm.v[0] == 0);
+
+            vm.keys[0xF] = 1;
+            ch8_exec(&vm, 0xF00A);
+            EXPECT(vm.v[0] == 0xF);
+        );
 
         TEST(
             name = "LD DT, Vx";
@@ -429,9 +442,27 @@ int main(void)
             EXPECT(vm.i == 20);
         );
 
-        /* TODO: LD F, Vx not tested FIXME? */
+        TEST(
+            name = "LD F, Vx";
 
-        /* TODO: LD B, Vx not tested FIXME? */
+            ch8_init(&vm);
+            vm.v[0] = 0xF;
+            ch8_exec(&vm, 0xF029);
+
+            const uint8_t ch_f[VM_FONT_H] = { 0xF0, 0x80, 0xF0, 0x80, 0x80 };
+            EXPECT(memcmp(vm.ram + vm.i, ch_f, VM_FONT_H) == 0);
+        );
+
+        TEST(
+            name = "LD B, Vx";
+
+            vm.v[0] = 123;
+            ch8_exec(&vm, 0xF033);
+
+            EXPECT(vm.ram[0] == 1);
+            EXPECT(vm.ram[1] == 2);
+            EXPECT(vm.ram[2] == 3);
+        );
 
         TEST(
             name = "LD [I], Vx";
@@ -456,5 +487,8 @@ int main(void)
         );
     }
 
-    return 0;
+    int count = __COUNTER__;
+    printf("\nSuccessfully ran %i/%i tests\n", count - failed_tests_count, count);
+
+    return failed_tests_count;
 }

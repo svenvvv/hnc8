@@ -50,18 +50,21 @@ static void ops_x0(ch8_t *vm, uint16_t opcode)
     }
 }
 
-static void jp(ch8_t *vm, uint16_t opcode) {
+static void jp(ch8_t *vm, uint16_t opcode)
+{
     uint16_t addr = opcode & 0x0FFF;
     vm->pc = addr;
 }
 
-static void call(ch8_t *vm, uint16_t opcode) {
+static void call(ch8_t *vm, uint16_t opcode)
+{
     uint16_t addr = opcode & 0x0FFF;
     vm->stack[vm->sp++] = vm->pc;
     vm->pc = addr;
 }
 
-static void se_vi(ch8_t *vm, uint16_t opcode) {
+static void se_vi(ch8_t *vm, uint16_t opcode)
+{
     uint8_t reg = (opcode & 0x0F00) >> 8;
     uint8_t imm = opcode & 0x00FF;
     if(vm->v[reg] == imm) {
@@ -69,7 +72,8 @@ static void se_vi(ch8_t *vm, uint16_t opcode) {
     }
 }
 
-static void sne_vi(ch8_t *vm, uint16_t opcode) {
+static void sne_vi(ch8_t *vm, uint16_t opcode)
+{
     uint8_t reg = (opcode & 0x0F00) >> 8;
     uint8_t imm = opcode & 0x00FF;
     if(vm->v[reg] != imm) {
@@ -77,7 +81,8 @@ static void sne_vi(ch8_t *vm, uint16_t opcode) {
     }
 }
 
-static void se_vv(ch8_t *vm, uint16_t opcode) {
+static void se_vv(ch8_t *vm, uint16_t opcode)
+{
     uint8_t rega = (opcode & 0x0F00) >> 8;
     uint8_t regb = (opcode & 0x00F0) >> 4;
     if(vm->v[rega] == vm->v[regb]) {
@@ -85,19 +90,22 @@ static void se_vv(ch8_t *vm, uint16_t opcode) {
     }
 }
 
-static void ld_vi(ch8_t *vm, uint16_t opcode) {
+static void ld_vi(ch8_t *vm, uint16_t opcode)
+{
     uint8_t reg = (opcode & 0x0F00) >> 8;
     uint8_t imm = opcode & 0x00FF;
     vm->v[reg] = imm;
 }
 
-static void add(ch8_t *vm, uint16_t opcode) {
+static void add(ch8_t *vm, uint16_t opcode)
+{
     uint8_t reg = (opcode & 0x0F00) >> 8;
     uint8_t imm = opcode & 0x00FF;
     vm->v[reg] += imm;
 }
 
-static void ops_x8(ch8_t *vm, uint16_t opcode) {
+static void ops_x8(ch8_t *vm, uint16_t opcode)
+{
     uint8_t rega = (opcode & 0x0F00) >> 8;
     uint8_t regb = (opcode & 0x00F0) >> 4;
     uint16_t result;
@@ -161,7 +169,8 @@ static void ops_x8(ch8_t *vm, uint16_t opcode) {
     }
 }
 
-static void sne_vv(ch8_t *vm, uint16_t opcode) {
+static void sne_vv(ch8_t *vm, uint16_t opcode)
+{
     uint8_t rega = (opcode & 0x0F00) >> 8;
     uint8_t regb = (opcode & 0x00F0) >> 4;
     if(vm->v[rega] != vm->v[regb]) {
@@ -169,37 +178,47 @@ static void sne_vv(ch8_t *vm, uint16_t opcode) {
     }
 }
 
-static void ld_i(ch8_t *vm, uint16_t opcode) {
+static void ld_i(ch8_t *vm, uint16_t opcode)
+{
     uint16_t addr = opcode & 0x0FFF;
     vm->i = addr;
 }
 
-static void jp_v(ch8_t *vm, uint16_t opcode) {
+static void jp_v(ch8_t *vm, uint16_t opcode)
+{
     uint16_t addr = opcode & 0x0FFF;
     vm->pc = vm->v[0] + addr;
 }
 
-static void rnd(ch8_t *vm, uint16_t opcode) {
+static void rnd(ch8_t *vm, uint16_t opcode)
+{
     uint8_t reg = (opcode & 0x0F00) >> 8;
     uint8_t imm = opcode & 0x00FF;
     vm->v[reg] = rand() & imm;
 }
 
-static void drw(ch8_t *vm, uint16_t opcode) {
+static void drw(ch8_t *vm, uint16_t opcode)
+{
     uint8_t rega = (opcode & 0x0F00) >> 8;
     uint8_t regb = (opcode & 0x00F0) >> 4;
     uint8_t bytes = (opcode & 0x000F);
     SETTXT("DRW V%X, V%X, %u", rega, regb, bytes);
 }
 
-static void skip(ch8_t *vm, uint16_t opcode) {
+static void skip(ch8_t *vm, uint16_t opcode)
+{
     uint8_t reg = (opcode & 0x0F00) >> 8;
+    uint8_t key = vm->v[reg];
     switch(opcode & 0xFF) {
         case 0x9E:
-            SETTXT("SKP V%X", reg);
+            if(vm->keys[key]) {
+                vm->pc += 2;
+            }
             break;
         case 0xA1:
-            SETTXT("SKNP V%X", reg);
+            if(vm->keys[key] == 0) {
+                vm->pc += 2;
+            }
             break;
         default:
             UNKNOWN_OP(opcode);
@@ -207,14 +226,27 @@ static void skip(ch8_t *vm, uint16_t opcode) {
     }
 }
 
-static void ops_xF(ch8_t *vm, uint16_t opcode) {
+static void ops_xF(ch8_t *vm, uint16_t opcode)
+{
     uint8_t reg = (opcode & 0x0F00) >> 8;
     switch(opcode & 0xFF) {
         case 0x07:
             vm->v[reg] = vm->tim_delay;
             break;
         case 0x0A:
-            SETTXT("LD V%X, K", reg);
+            /*
+             * decrement PC so we'll loop, doing it here
+             * for simplicity. if a key is found then it'll
+             * be incremented to break out of the loop.
+             */
+            vm->pc -= 2;
+            for(uint8_t i = 0; i < VM_KEY_COUNT; ++i) {
+                if(vm->keys[i] != 0) {
+                    vm->v[reg] = i;
+                    vm->pc += 2;
+                    break;
+                }
+            }
             break;
         case 0x15:
             vm->tim_delay = vm->v[reg];
@@ -226,10 +258,12 @@ static void ops_xF(ch8_t *vm, uint16_t opcode) {
             vm->i += vm->v[reg];
             break;
         case 0x29:
-            SETTXT("LD F, V%X", reg);
+            vm->i = vm->v[reg] * VM_FONT_H;
             break;
         case 0x33:
-            SETTXT("LD B, V%X", reg);
+            vm->ram[vm->i] = vm->v[reg] / 100;
+            vm->ram[vm->i + 1] = (vm->v[reg] / 10) % 10;
+            vm->ram[vm->i + 2] = (vm->v[reg] % 100) % 10;
             break;
         case 0x55:
             memcpy(vm->ram + vm->i, vm->v, reg);

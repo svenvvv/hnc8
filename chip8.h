@@ -28,6 +28,7 @@
 #define VM_SCREEN_HEIGHT    32
 #define VM_STACK_SIZE       16
 #define VM_KEY_COUNT        16
+#define VM_FONT_H           5
 
 typedef struct {
     /* Registers */
@@ -46,7 +47,12 @@ typedef struct {
 } ch8_t;
 
 /*
- * Reset the VM core and load rom into VM memory.
+ * Initialize the VM core
+ */
+void ch8_init(ch8_t *vm);
+
+/*
+ * Reinitialize the VM core and load rom into VM memory.
  *
  * Params:
  *  rom     - pointer to file contents,

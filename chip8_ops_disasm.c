@@ -49,47 +49,55 @@ static void ops_x0(uint16_t opcode)
     }
 }
 
-static void jp(uint16_t opcode) {
+static void jp(uint16_t opcode)
+{
     uint16_t addr = opcode & 0x0FFF;
     SETTXT("JP 0x%04X", addr);
 }
 
-static void call(uint16_t opcode) {
+static void call(uint16_t opcode)
+{
     uint16_t addr = opcode & 0x0FFF;
     SETTXT("CALL 0x%04X", addr);
 }
 
-static void se_vi(uint16_t opcode) {
+static void se_vi(uint16_t opcode)
+{
     uint8_t reg = (opcode & 0x0F00) >> 8;
     uint8_t imm = opcode & 0x00FF;
     SETTXT("SE V%X, %u", reg, imm);
 }
 
-static void sne_vi(uint16_t opcode) {
+static void sne_vi(uint16_t opcode)
+{
     uint8_t reg = (opcode & 0x0F00) >> 8;
     uint8_t imm = opcode & 0x00FF;
     SETTXT("SNE V%X, %u", reg, imm);
 }
 
-static void se_vv(uint16_t opcode) {
+static void se_vv(uint16_t opcode)
+{
     uint8_t rega = (opcode & 0x0F00) >> 8;
     uint8_t regb = (opcode & 0x00F0) >> 4;
     SETTXT("SE V%X, V%X", rega, regb);
 }
 
-static void ld_vi(uint16_t opcode) {
+static void ld_vi(uint16_t opcode)
+{
     uint8_t reg = (opcode & 0x0F00) >> 8;
     uint8_t imm = opcode & 0x00FF;
     SETTXT("LD V%X, %u", reg, imm);
 }
 
-static void add(uint16_t opcode) {
+static void add(uint16_t opcode)
+{
     uint8_t reg = (opcode & 0x0F00) >> 8;
     uint8_t imm = opcode & 0x00FF;
     SETTXT("ADD V%X, %u", reg, imm);
 }
 
-static void ops_x8(uint16_t opcode) {
+static void ops_x8(uint16_t opcode)
+{
     uint8_t rega = (opcode & 0x0F00) >> 8;
     uint8_t regb = (opcode & 0x00F0) >> 4;
     switch(opcode & 0x000F) {
@@ -126,36 +134,42 @@ static void ops_x8(uint16_t opcode) {
     }
 }
 
-static void sne_vv(uint16_t opcode) {
+static void sne_vv(uint16_t opcode)
+{
     uint8_t rega = (opcode & 0x0F00) >> 8;
     uint8_t regb = (opcode & 0x00F0) >> 4;
     SETTXT("SNE V%X, V%X", rega, regb);
 }
 
-static void ld_i(uint16_t opcode) {
+static void ld_i(uint16_t opcode)
+{
     uint16_t addr = opcode & 0x0FFF;
     SETTXT("LD I, 0x%04X", addr);
 }
 
-static void jp_v(uint16_t opcode) {
+static void jp_v(uint16_t opcode)
+{
     uint16_t addr = opcode & 0x0FFF;
     SETTXT("JP V0, %04X", addr);
 }
 
-static void rnd(uint16_t opcode) {
+static void rnd(uint16_t opcode)
+{
     uint8_t reg = (opcode & 0x0F00) >> 8;
     uint8_t imm = opcode & 0x00FF;
     SETTXT("RND V%X, %u", reg, imm);
 }
 
-static void drw(uint16_t opcode) {
+static void drw(uint16_t opcode)
+{
     uint8_t rega = (opcode & 0x0F00) >> 8;
     uint8_t regb = (opcode & 0x00F0) >> 4;
     uint8_t bytes = (opcode & 0x000F);
     SETTXT("DRW V%X, V%X, %u", rega, regb, bytes);
 }
 
-static void skip(uint16_t opcode) {
+static void skip(uint16_t opcode)
+{
     uint8_t reg = (opcode & 0x0F00) >> 8;
     switch(opcode & 0xFF) {
         case 0x9E:
@@ -170,7 +184,8 @@ static void skip(uint16_t opcode) {
     }
 }
 
-static void ops_xF(uint16_t opcode) {
+static void ops_xF(uint16_t opcode)
+{
     uint8_t reg = (opcode & 0x0F00) >> 8;
     switch(opcode & 0xFF) {
         case 0x07:
