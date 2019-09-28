@@ -1,3 +1,21 @@
+/*
+ * hnc8
+ * Copyright (C) 2019 hundinui
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -9,22 +27,35 @@
 #define COL_RED "\033[1;31m"
 #define COL_GRN "\033[1;32m"
 
+#define TERM_COLUMNS 80
+
+#define PPSTR2(x) #x
+#define PPSTR(x) PPSTR2(x)
+
 /*
  * Testbed boilerplate code
  */
 #define TEST(...) \
 { \
+    int test_fail_line = 0; \
+    char test_fail_expr[256]; \
     const char *name; \
     bool test = true; \
     ch8_t vm = {{ 0 }}; \
     __VA_ARGS__ \
-    printf("  %s\t\t\t%s\n", name, test ? COL_GRN "✓ PASS" COL_RST : COL_RED "✗ FAIL" COL_RST); \
+    const int test_name_len = strlen(name);\
+    printf("    %s:%*s\n", name, TERM_COLUMNS - test_name_len - 20, test ? COL_GRN "✓ PASS" COL_RST : COL_RED "✗ FAIL" COL_RST); \
+    if(test_fail_line) { printf("      " COL_RED "Failed at expression \"%s\" on line %i\n" COL_RST, test_fail_expr, test_fail_line); } \
 }
 
-#define TESTGROUP(name) printf("%s\n", name);
+/* lazy hack :) */
+const char *group_sep_symbol = \
+"------------------------------------------------------------------------------------------------------------------------------------------------------";
+
+#define TESTGROUP(name) { const int len = strlen(name); printf("- %s %.*s\n", name, TERM_COLUMNS - 3 - len, group_sep_symbol); }
 
 #define EXPECT(...) \
-if(!(__VA_ARGS__)) { test = false; }
+if(!(__VA_ARGS__)) { test = false; test_fail_line = __LINE__; sprintf(test_fail_expr, "%s", PPSTR(__VA_ARGS__)); }
 
 static const uint8_t ram_zero[VM_RAM_SIZE] = { 0 };
 
