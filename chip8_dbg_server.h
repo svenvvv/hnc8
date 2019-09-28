@@ -16,11 +16,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef GDB_SERVER_H
-#define GDB_SERVER_H
+#ifndef CHIP8_DBG_SERVER_H
+#define CHIP8_DBG_SERVER_H
 
 #include <stdint.h>
 
 void dbg_server_loop(uint16_t port);
 
-#endif // GDB_SERVER_H
+#endif // CHIP8_DBG_SERVER_H
