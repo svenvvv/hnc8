@@ -3,7 +3,7 @@ BINDIR := bin
 OBJDIR := obj
 
 ARCH_PREFIX :=
-CC := $(ARCH_PREFIX)clang
+CC := $(ARCH_PREFIX)gcc
 
 VERSION_STR := \"0.1-$(shell git rev-list --count HEAD)\"
 
@@ -11,10 +11,13 @@ LIBS := glfw3 gl
 LDFLAGS := $(shell pkg-config --libs $(LIBS)) -flto
 CFLAGS := $(shell pkg-config --cflags $(LIBS)) -std=c99 -DHNC8_VERSION=$(VERSION_STR)
 CFLAGS_RELEASE := -Wall -Wpedantic -Werror -Wuninitialized -O2 -DNDEBUG
-CFLAGS_DEBUG := -ggdb -g3 -gfull -O0 -DDEBUG
+CFLAGS_DEBUG := -ggdb -g3 -O0 -DDEBUG
 
 SRCS := $(wildcard *.c)
 OBJS := $(patsubst %.c, $(OBJDIR)/%.o, $(SRCS))
+
+TEST_SRC := chip8.c chip8_ops.c $(wildcard tests/*.c)
+TEST_OBJ := $(patsubst %.c, $(OBJDIR)/%.o, $(TEST_SRC))
 
 .PHONY: release
 release: CFLAGS += $(CFLAGS_RELEASE)
@@ -24,11 +27,21 @@ release: $(BINDIR)/$(PROGNAME)
 debug: CFLAGS += $(CFLAGS_DEBUG)
 debug: $(BINDIR)/$(PROGNAME)
 
+.PHONY: tests
+tests: CFLAGS += $(CFLAGS_DEBUG)
+tests: $(BINDIR)/$(PROGNAME)_test
+
 $(OBJDIR)/%.o: %.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 $(BINDIR)/$(PROGNAME): $(OBJDIR) $(BINDIR) $(OBJS)
 	$(CC) -o $(BINDIR)/$(PROGNAME) $(OBJS) $(LDFLAGS)
+
+$(BINDIR)/$(PROGNAME)_test: $(OBJDIR) $(OBJDIR)/tests $(BINDIR) $(TEST_OBJ)
+	$(CC) -o $(BINDIR)/$(PROGNAME)_test $(TEST_OBJ) $(LDFLAGS)
+
+$(OBJDIR)/tests:
+	mkdir -p $(OBJDIR)/tests
 
 $(OBJDIR):
 	mkdir -p $(OBJDIR)
@@ -38,4 +51,4 @@ $(BINDIR):
 
 .PHONY: clean
 clean:
-	rm -fv $(OBJDIR)/*.o $(BINDIR)/$(PROGNAME)
+	rm -fv $(OBJDIR)/*.o $(BINDIR)/$(PROGNAME) $(BINDIR)/$(PROGNAME)_test

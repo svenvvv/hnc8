@@ -26,13 +26,17 @@
 #define VM_RAM_SIZE         4096
 #define VM_SCREEN_WIDTH     64
 #define VM_SCREEN_HEIGHT    32
+#define VM_STACK_SIZE       16
+#define VM_KEY_COUNT        16
 
 typedef struct {
     /* Registers */
     uint8_t v[16];
     uint16_t i;
     uint16_t pc;
-    uint16_t sp;
+    uint8_t sp;
+    uint16_t stack[VM_STACK_SIZE];
+    uint8_t keys[VM_KEY_COUNT];
     /* Timers */
     uint8_t tim_delay;
     uint8_t tim_sound;
