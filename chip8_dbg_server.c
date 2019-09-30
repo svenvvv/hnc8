@@ -34,6 +34,8 @@
 #define MAX_TOKENS    16
 #define MAX_STRARG_SZ 64
 
+#define EXAMINE_BYTES_PER_ROW 16
+
 #define MSG_CURSOR      ">"
 #define MSG_HELLO       "hnc8 debug server " HNC8_VERSION "\nType \"help\" for help or \"commands\" for a listing of commands.\n"
 #define MSG_HELP        "TODO :)\n"
@@ -114,6 +116,8 @@ static int cmd_load(int sockfd, lex_t *argv, int argc)
         return -1;
     }
 
+    ch8_load(&g_vm, g_file, g_file_sz);
+
     tx_printf(sockfd, "Loaded \"%s\".\n", argv[1].str);
 
     tx_msg(MSG_OK);
@@ -168,9 +172,35 @@ static int cmd_examine(int sockfd, lex_t *argv, int argc)
     }
 
     char *endptr = NULL;
-    int addr = strtol(argv[1].str, &endptr, 0);
+    uint16_t addr = strtol(argv[1].str, &endptr, 0);
     if(errno != 0 || endptr == argv[1].str) {
         return -1;
+    }
+    uint8_t count = EXAMINE_BYTES_PER_ROW;
+    uint8_t rows = 1;
+    if(argc == 3) {
+        endptr = NULL;
+        count = strtol(argv[2].str, &endptr, 0);
+        if(errno != 0 || endptr == argv[1].str) {
+            return -1;
+        }
+
+        rows = count / EXAMINE_BYTES_PER_ROW;
+        if(count % EXAMINE_BYTES_PER_ROW != 0) {
+            rows += 1;
+        }
+    }
+
+    for(uint8_t x = 0; x < rows; ++x) {
+        tx_printf(sockfd, "%04x: ", addr + (x * EXAMINE_BYTES_PER_ROW));
+        for(uint8_t y = 0;
+            y < EXAMINE_BYTES_PER_ROW &&
+            y + (x * EXAMINE_BYTES_PER_ROW) < count;
+            ++y) {
+            tx_printf(sockfd, "%02x ",
+                g_vm.ram[addr + (x * EXAMINE_BYTES_PER_ROW) + y]);
+        }
+        tx_printf(sockfd, "\n");
     }
 
     printf("examine %i\n", addr);
