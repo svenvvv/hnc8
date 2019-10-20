@@ -41,7 +41,6 @@
 #define MSG_HELLO       "hnc8 debug server " HNC8_VERSION "\nType \"help\" for help or \"commands\" for a listing of commands.\n"
 #define MSG_HELP        "TODO :)\n"
 #define MSG_SHUTDOWN    "The server will shut down after client disconnect.\n"
-#define MSG_OK          "OK\n"
 
 #define MSG_ERR_FN              "Error executing function\n"
 #define MSG_ERR_NO_FILE         "No file has been loaded.\nUse command \"load filename\" to load a program.\n"
@@ -96,7 +95,6 @@ static int cmd_help(int sockfd, lex_t *argv, int argc)
 
 static int cmd_shutdown(int sockfd, lex_t *argv, int argc)
 {
-    tx_msg(MSG_OK);
     tx_msg(MSG_SHUTDOWN);
     g_running = false;
     return 0;
@@ -124,7 +122,6 @@ static int cmd_load(int sockfd, lex_t *argv, int argc)
 
     tx_printf(sockfd, "Loaded \"%s\".\n", argv[1].str);
 
-    tx_msg(MSG_OK);
     return 0;
 }
 
@@ -222,7 +219,8 @@ static int cmd_backtrace(int sockfd, lex_t *argv, int argc)
         tx_msg(MSG_ERR_NO_FILE);
         return -1;
     }
-    tx_msg(MSG_OK);
+
+
     return 0;
 }
 
@@ -285,9 +283,6 @@ static int cmd_examine(int sockfd, lex_t *argv, int argc)
         tx_printf(sockfd, "\n");
     }
 
-    printf("examine %i\n", addr);
-
-    tx_msg(MSG_OK);
     return 0;
 }
 
@@ -402,7 +397,6 @@ static int cmd_registers(int sockfd, lex_t *argv, int argc)
                 return -1;
         }
 
-        tx_msg(MSG_OK);
         if(argc == 3) {
             tx_printf(sockfd, "Set %s to 0x%04x (%u)\n", name, val, val);
         } else {
@@ -447,10 +441,21 @@ static int cmd_disassemble(int sockfd, lex_t *argv, int argc)
         return -1;
     }
 
-    /* lazy hack, save old PC and then increment PC and use
-     * ch8_get_op to handle the opcode decoding */
+    /*
+     * lazy hack, save old PC and then increment PC and use
+     * ch8_get_op to handle the opcode decoding
+     */
     uint16_t old_pc = g_vm.pc;
     uint16_t count = 6;
+
+    if(argc == 2) {
+        char *endptr = NULL;
+        count = strtol(argv[1].str, &endptr, 0);
+    }
+    if(argc == 3) {
+        char *endptr = NULL;
+        g_vm.pc = strtol(argv[2].str, &endptr, 0);
+    }
 
     for(uint16_t i = 0; i < count; ++i) {
         uint16_t op = ch8_get_op(&g_vm);
@@ -459,6 +464,8 @@ static int cmd_disassemble(int sockfd, lex_t *argv, int argc)
 
         g_vm.pc += 2;
     }
+
+    g_vm.pc = old_pc;
 
     return 0;
 }
@@ -517,12 +524,12 @@ static inline void decode_msg(int sockfd, char *msg, size_t len)
     char *end;
 
     while((end = memchr(start, ' ', len)) != NULL && end < msg + len) {
-        uint8_t len = end - start;
-        if(len == 0) {
+        uint8_t word_len = end - start;
+        if(word_len == 0) {
             start = end + 1;
             continue;
         }
-        lex[lex_i].len = len;
+        lex[lex_i].len = word_len;
         lex[lex_i].str = start;
         lex_i += 1;
         start = end + 1;
@@ -580,7 +587,6 @@ static void client_handler(int sockfd)
 void dbg_server_loop(uint16_t port)
 {
     int sockfd;
-    int connfd;
     struct sockaddr_in servaddr, cli;
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -612,7 +618,7 @@ void dbg_server_loop(uint16_t port)
     ch8_init(&g_vm);
 
     while(g_running) {
-        connfd = accept(sockfd, (struct sockaddr *)&cli, &len);
+        int connfd = accept(sockfd, (struct sockaddr *)&cli, &len);
         if(connfd < 0) {
             LOG_ERROR("Error accepting client\n");
             return;
