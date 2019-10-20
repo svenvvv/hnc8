@@ -58,6 +58,11 @@ void ch8_init(ch8_t *vm)
     srand(time(NULL));
 }
 
+inline uint16_t ch8_get_op(ch8_t *vm)
+{
+    return (vm->ram[vm->pc] << 8) | vm->ram[vm->pc + 1];
+}
+
 void ch8_load(ch8_t *vm, const uint16_t *rom, uint16_t rom_sz)
 {
     assert(vm != NULL);
@@ -72,7 +77,7 @@ void ch8_tick(ch8_t *vm)
 {
     assert(vm != NULL);
 
-    uint16_t opcode = (vm->ram[vm->pc] << 8) | vm->ram[vm->pc + 1];
+    uint16_t opcode = ch8_get_op(vm);
     ch8_exec(vm, opcode);
 }
 

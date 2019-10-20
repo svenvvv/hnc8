@@ -52,6 +52,11 @@ typedef struct {
 void ch8_init(ch8_t *vm);
 
 /*
+ * Return the current opcode at PC
+ */
+uint16_t ch8_get_op(ch8_t *vm);
+
+/*
  * Reinitialize the VM core and load rom into VM memory.
  *
  * Params:

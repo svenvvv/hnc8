@@ -33,6 +33,7 @@
 #define MAX_PACKET_SZ 512
 #define MAX_TOKENS    16
 #define MAX_STRARG_SZ 64
+#define MAX_BPOINTS   16
 
 #define EXAMINE_BYTES_PER_ROW 16
 
@@ -63,11 +64,14 @@ typedef struct {
     const char *help_text;
 } command_t;
 
-ch8_t g_vm;
-bool g_running = true;
+static ch8_t g_vm;
+static bool g_running = true;
 
-uint16_t *g_file = NULL;
-size_t g_file_sz = 0;
+static uint16_t g_bpoints[MAX_BPOINTS] = { 0 };
+static uint8_t g_bpoints_count = 0;
+
+static uint16_t *g_file = NULL;
+static size_t g_file_sz = 0;
 
 static void tx_printf(int sockfd, const char *fmt, ...)
 {
@@ -130,7 +134,64 @@ static int cmd_break(int sockfd, lex_t *argv, int argc)
         tx_msg(MSG_ERR_NO_FILE);
         return -1;
     }
-    tx_msg(MSG_OK);
+
+    if(g_bpoints_count < MAX_BPOINTS) {
+        int br_addr = 0;
+
+        if(argc == 1) {
+            br_addr = g_vm.pc;
+        } else {
+            char *endptr = NULL;
+            br_addr = strtol(argv[1].str, &endptr, 0);
+        }
+
+        g_bpoints[g_bpoints_count++] = br_addr;
+
+        tx_printf(sockfd, "Set breakpoint %i on 0x%x\n", g_bpoints_count-1, br_addr);
+
+        return 0;
+    } else {
+        tx_printf(sockfd, "Maximum number of breakpoints reached (%d)\n", MAX_BPOINTS);
+
+        return -1;
+    }
+}
+
+static int cmd_lsbreak(int sockfd, lex_t *argv, int argc)
+{
+    if(g_bpoints_count == 0) {
+        tx_printf(sockfd, "No breakpoints\n");
+        return 0;
+    }
+    for(uint8_t i = 0; i < g_bpoints_count; ++i) {
+        tx_printf(sockfd, "%i - 0x%x\n", i, g_bpoints[i]);
+    }
+    return 0;
+}
+
+static int cmd_rmbreak(int sockfd, lex_t *argv, int argc)
+{
+    if(g_bpoints_count == 0) {
+        tx_printf(sockfd, "No breakpoints\n");
+        return 0;
+    }
+    int num = 0;
+    if(argc == 1) {
+        num = --g_bpoints_count;
+        g_bpoints[num] = 0;
+    } else {
+        char *endptr = NULL;
+        num = strtol(argv[1].str, &endptr, 0);
+        if(num > g_bpoints_count || num < 0) {
+          tx_msg(MSG_ERR_ARGS_INVALID);
+          return -1;
+        }
+        g_bpoints[num] = g_bpoints[--g_bpoints_count];
+    }
+
+    tx_printf(sockfd, "Removed breakpoint %i\n", num);
+
+    return 0;
 }
 
 static int cmd_continue(int sockfd, lex_t *argv, int argc)
@@ -139,7 +200,20 @@ static int cmd_continue(int sockfd, lex_t *argv, int argc)
         tx_msg(MSG_ERR_NO_FILE);
         return -1;
     }
-    tx_msg(MSG_OK);
+
+    for(;;) {
+        ch8_tick(&g_vm);
+        g_vm.pc += 2;
+
+        for(uint8_t i = 0; i < g_bpoints_count; ++i) {
+            if(g_vm.pc == g_bpoints[i]) {
+                tx_printf(sockfd, "Breakpoint %i hit at 0x%x\n", i, g_bpoints[i]);
+                return 0;
+            }
+        }
+    }
+
+    return 0;
 }
 
 static int cmd_backtrace(int sockfd, lex_t *argv, int argc)
@@ -149,6 +223,7 @@ static int cmd_backtrace(int sockfd, lex_t *argv, int argc)
         return -1;
     }
     tx_msg(MSG_OK);
+    return 0;
 }
 
 static int cmd_stepi(int sockfd, lex_t *argv, int argc)
@@ -157,7 +232,14 @@ static int cmd_stepi(int sockfd, lex_t *argv, int argc)
         tx_msg(MSG_ERR_NO_FILE);
         return -1;
     }
-    tx_msg(MSG_OK);
+
+    uint16_t opcode = ch8_get_op(&g_vm);
+    ch8_exec(&g_vm, opcode);
+    tx_printf(sockfd, "%s\n", ch8_disassemble(opcode));
+
+    g_vm.pc += 2;
+
+    return 0;
 }
 
 static int cmd_examine(int sockfd, lex_t *argv, int argc)
@@ -333,26 +415,80 @@ static int cmd_registers(int sockfd, lex_t *argv, int argc)
     return -1;
 }
 
+static int cmd_setkey(int sockfd, lex_t *argv, int argc)
+{
+    if(argc < 2) {
+        return -1;
+    }
+    char *endptr = NULL;
+    int keyvalue = strtol(argv[1].str, &endptr, 0);
+    if(keyvalue > 15 || keyvalue < 0) {
+        return -1;
+    }
+    g_vm.keys[keyvalue] = !g_vm.keys[keyvalue];
+    return 0;
+}
+
+static int cmd_keys(int sockfd, lex_t *argv, int argc)
+{
+    uint8_t *k = g_vm.keys;
+
+    for(uint8_t i = 0; i < 4; ++i) {
+        tx_printf(sockfd, "%i %i %i %i\n", k[4*i], k[4*i+1], k[4*i+2], k[4*i+3]);
+    }
+
+    return 0;
+}
+
+static int cmd_disassemble(int sockfd, lex_t *argv, int argc)
+{
+    if(g_file == NULL) {
+        tx_msg(MSG_ERR_NO_FILE);
+        return -1;
+    }
+
+    /* lazy hack, save old PC and then increment PC and use
+     * ch8_get_op to handle the opcode decoding */
+    uint16_t old_pc = g_vm.pc;
+    uint16_t count = 6;
+
+    for(uint16_t i = 0; i < count; ++i) {
+        uint16_t op = ch8_get_op(&g_vm);
+        const char *disstr = ch8_disassemble(op);
+        tx_printf(sockfd, "%X %s\n", g_vm.pc, disstr);
+
+        g_vm.pc += 2;
+    }
+
+    return 0;
+}
+
 /*
  * only one prototyped because we need to read the list we are pointing
  * to this from :)
  */
 static int cmd_commands(int sockfd, lex_t *argv, int argc);
 
-#define DEF_CMD(cmd, shortcmd, fn, help_text) { cmd, sizeof(cmd) - 1, shortcmd, sizeof(shortcmd) - 1, fn, help_text }
+#define DEF_CMD(cmd, shortcmd, fn, help_text) \
+{ cmd, sizeof(cmd) - 1, shortcmd, shortcmd == NULL ? 0: sizeof(shortcmd) - 1, fn, help_text }
 
 static const command_t commands[] = {
-    /*       NAME        SHORT     FUNC          HELP*/
-    DEF_CMD("help",       "h",    cmd_help,     "- Display help message"),
-    DEF_CMD("shutdown",   NULL,   cmd_shutdown, "- Shut down the server"),
-    DEF_CMD("load",       "l",    cmd_load,     "filename - Load ROM into VM"),
-    DEF_CMD("break",      "b",    cmd_break,    "[offset] - Add a breakpoint"),
-    DEF_CMD("continue",   "c",    cmd_continue, "- Continue execution until breakpoint"),
-    DEF_CMD("backtrace",  "bt",   cmd_backtrace, "- Display the stack trace"),
-    DEF_CMD("stepi",      "si",   cmd_stepi,    "[count] - Step forward"),
-    DEF_CMD("examine",    "x",    cmd_examine,  "address [count] - Examine memory"),
-    DEF_CMD("commands",   NULL,   cmd_commands, "- Display this info about commands"),
-    DEF_CMD("registers",  "r",    cmd_registers, "[register] [value] - Display and edit VM registers")
+    /*       NAME        SHORT     FUNC               HELP */
+    DEF_CMD("help",         "h",    cmd_help,         "- Display help message"),
+    DEF_CMD("shutdown",     NULL,   cmd_shutdown,     "- Shut down the server"),
+    DEF_CMD("load",         "l",    cmd_load,         "filename - Load ROM into VM"),
+    DEF_CMD("break",        "b",    cmd_break,        "[address] - Add a breakpoint"),
+    DEF_CMD("lsbreak",      "lb",   cmd_lsbreak,      "- List breakpoints"),
+    DEF_CMD("rmbreak",      "rb",   cmd_rmbreak,      "[index] - Remove breakpoint at address, or latest"),
+    DEF_CMD("continue",     "c",    cmd_continue,     "- Continue execution until breakpoint"),
+    DEF_CMD("backtrace",    "bt",   cmd_backtrace,    "- Display the stack trace"),
+    DEF_CMD("stepi",        "si",   cmd_stepi,        "[count] - Step forward"),
+    DEF_CMD("examine",      "x",    cmd_examine,      "address [count] - Examine memory"),
+    DEF_CMD("commands",     NULL,   cmd_commands,     "- Display this info about commands"),
+    DEF_CMD("registers",    "r",    cmd_registers,    "[register] [value] - Display and edit VM registers"),
+    DEF_CMD("setkey",       "sk",   cmd_setkey,       "keynum - Toggle a keypad key state"),
+    DEF_CMD("keys",         "k",    cmd_keys,         "- Display keypad state"),
+    DEF_CMD("disassemble",  "da",   cmd_disassemble,  "[count] [offset] - Disassemble opcodes")
 };
 #define commands_count (sizeof(commands) / sizeof(commands[0]))
 
@@ -362,6 +498,7 @@ static int cmd_commands(int sockfd, lex_t *argv, int argc)
     for(uint8_t i = 0; i < commands_count; ++i) {
         tx_printf(sockfd, "  %s %s\n", commands[i].cmd, commands[i].help_text);
     }
+    return 0;
 }
 
 static inline void decode_msg(int sockfd, char *msg, size_t len)
@@ -394,15 +531,18 @@ static inline void decode_msg(int sockfd, char *msg, size_t len)
     lex[lex_i].str = start;
     lex_i += 1;
 
+#ifdef DEBUG
     for(int i = 0; i < lex_i; ++i) {
         printf("%i - %.*s\n", lex[i].len, lex[i].len, lex[i].str);
     }
+#endif
 
     const lex_t *net_cmd = &lex[0];
     for(uint8_t i = 0; i < commands_count; ++i) {
         const command_t *cmd = &commands[i];
         bool cmd_match = net_cmd->len == cmd->cmd_len;
-        bool short_match = net_cmd->len == cmd->cmd_short_len;
+        bool short_match = cmd->cmd_short_len > 0 ?
+            net_cmd->len == cmd->cmd_short_len : false;
         if(
         (cmd_match && strncmp(net_cmd->str, cmd->cmd, cmd->cmd_len) == 0) ||
         (short_match && strncmp(net_cmd->str, cmd->cmd_short, cmd->cmd_short_len) == 0)

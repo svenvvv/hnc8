@@ -30,7 +30,7 @@
 const char *usage_general = "\
 Usage: %s [OPTION]... FILE\n\n\
 Options:\n\
-\t-m MODE\t\tselect operation mode\n\t\t\t  valid modes are \"emu\" and \"disasm\"\n\
+\t-m MODE\t\tselect operation mode\n\t\t\t  valid modes are \"emu\", \"server\" and \"disasm\"\n\
 \t-h\t\toutput this help message and exit\n\
 \t-v\t\toutput version information and exit\n\
 \n";
@@ -43,6 +43,11 @@ Disassembler options:\n\
 
 const char *usage_emu = "\
 Emulator options:\n\
+\n";
+
+const char *usage_server = "\
+Server options:\n\
+\t-p\t\tlisten port (default: 8888)\n\
 \n";
 
 const char *version_text = "\
@@ -58,6 +63,7 @@ static void print_usage(const char *exe_name)
     printf(usage_general, exe_name);
     printf("%s", usage_disasm);
     printf("%s", usage_emu);
+    printf("%s", usage_server);
 }
 
 static void print_version(void)
