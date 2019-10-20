@@ -220,6 +220,17 @@ static int cmd_backtrace(int sockfd, lex_t *argv, int argc)
         return -1;
     }
 
+    uint8_t sp = g_vm.sp;
+
+    if(sp) {
+        tx_printf(sockfd, "Stack trace:\n");
+
+        while(sp--) {
+            tx_printf(sockfd, "0: 0x%04X\n", g_vm.stack[sp]);
+        }
+    } else {
+        tx_printf(sockfd, "No addresses on stack\n");
+    }
 
     return 0;
 }
