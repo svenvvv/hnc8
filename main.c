@@ -25,6 +25,7 @@
 #include "chip8.h"
 #include "log.h"
 #include "chip8_dbg_server.h"
+#include "chip8_emu.h"
 #include "file.h"
 
 const char *usage_general = "\
@@ -77,17 +78,6 @@ typedef enum {
     MODE_DEBUG
 } mode_e;
 
-static void emu_loop(const uint16_t *rom, uint16_t rom_sz)
-{
-    ch8_t vm;
-    ch8_load(&vm, rom, rom_sz);
-
-    do {
-        ch8_tick(&vm);
-        ch8_tick_timers(&vm);
-    } while(true);
-}
-
 int main(int argc, char **argv)
 {
     int opt;
@@ -95,8 +85,9 @@ int main(int argc, char **argv)
     bool opt_da_addr = false;
     bool opt_da_instr = false;
     int opt_dbg_port = 8888;
+    double opt_emu_scale = 10.0;
 
-    while((opt = getopt(argc, argv, "hvm:aip:")) != -1) {
+    while((opt = getopt(argc, argv, "hvm:aip:s:")) != -1) {
         switch(opt) {
             /* General options */
             case ':':
@@ -142,6 +133,11 @@ int main(int argc, char **argv)
             case 'p':
                 opt_dbg_port = (uint16_t)strtol(optarg, NULL, 10);
                 break;
+            /* Emulator specific options */
+            case 's':
+                opt_emu_scale = strtod(optarg, NULL);
+                LOG_DEBUG("Scale set to %f\n", opt_emu_scale);
+                break;
         }
     }
 
@@ -179,7 +175,7 @@ int main(int argc, char **argv)
             }
             break;
         case MODE_EMULATOR:
-            emu_loop(input_mem, input_sz);
+            emu_loop(input_mem, input_sz, opt_emu_scale);
             break;
         case MODE_DEBUG:
             LOG_ERROR("this should not happen\n");

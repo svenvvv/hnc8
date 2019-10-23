@@ -23,8 +23,7 @@
 #include "log.h"
 #include "chip8.h"
 
-#define SETTXT(...)
-#define UNKNOWN_OP(opcode)  SETTXT("UNKNOWN"); LOG_ERROR("UNKNOWN OPCODE %04X", opcode)
+#define UNKNOWN_OP(opcode) LOG_ERROR("UNKNOWN OPCODE %04X\n", opcode)
 
 #define SETVF vm->v[0xF] = 1
 #define CLRVF vm->v[0xF] = 0
@@ -53,14 +52,14 @@ static void ops_x0(ch8_t *vm, uint16_t opcode)
 static void jp(ch8_t *vm, uint16_t opcode)
 {
     uint16_t addr = opcode & 0x0FFF;
-    vm->pc = addr;
+    vm->pc = addr - 2;
 }
 
 static void call(ch8_t *vm, uint16_t opcode)
 {
     uint16_t addr = opcode & 0x0FFF;
     vm->stack[vm->sp++] = vm->pc;
-    vm->pc = addr;
+    vm->pc = addr - 2;
 }
 
 static void se_vi(ch8_t *vm, uint16_t opcode)
@@ -187,7 +186,7 @@ static void ld_i(ch8_t *vm, uint16_t opcode)
 static void jp_v(ch8_t *vm, uint16_t opcode)
 {
     uint16_t addr = opcode & 0x0FFF;
-    vm->pc = vm->v[0] + addr;
+    vm->pc = vm->v[0] + addr - 2;
 }
 
 static void rnd(ch8_t *vm, uint16_t opcode)
@@ -199,10 +198,25 @@ static void rnd(ch8_t *vm, uint16_t opcode)
 
 static void drw(ch8_t *vm, uint16_t opcode)
 {
-    uint8_t rega = (opcode & 0x0F00) >> 8;
-    uint8_t regb = (opcode & 0x00F0) >> 4;
-    uint8_t bytes = (opcode & 0x000F);
-    SETTXT("DRW V%X, V%X, %u", rega, regb, bytes);
+    uint8_t x = vm->v[(opcode & 0x0F00) >> 8];
+    uint8_t y = vm->v[(opcode & 0x00F0) >> 4];
+    uint8_t bval = (opcode & 0x000F);
+
+    // zero collision reg
+    vm->v[0xF] = 0;
+
+    for(uint8_t iy = 0; iy < bval; ++iy) {
+        uint8_t sprite = vm->ram[vm->i + iy];
+        for(uint8_t ix = 0; ix < 8; ++ix) {
+            if(sprite & (0x80 >> ix)) {
+                uint16_t vram_off = ((x + ix) + ((y + iy) * VM_SCREEN_WIDTH)) % 2048;
+                vm->v[0xF] |= vm->vram[vram_off] & 1;
+                vm->vram[vram_off] = ~vm->vram[vram_off];
+            }
+        }
+    }
+
+    vm->vram_updated = true;
 }
 
 static void skip(ch8_t *vm, uint16_t opcode)
