@@ -4,11 +4,10 @@ OBJDIR := obj
 
 CC ?= gcc
 
-VERSION_STR := \"1.0-$(shell git rev-list --count HEAD)\"
+VERSION_STR := \"1.0-windows\"
 
-LIBS := glfw3 gl
-LDFLAGS := $(shell pkg-config --libs $(LIBS)) -flto
-CFLAGS := $(shell pkg-config --cflags $(LIBS)) -std=c99 -DHNC8_VERSION=$(VERSION_STR)
+LDFLAGS := -flto -lopengl32 -lws2_32 -lglfw3 -lgdi32
+CFLAGS := -std=c99 -DHNC8_VERSION=$(VERSION_STR)
 CFLAGS_RELEASE := -Wall -Wpedantic -Werror -Wuninitialized -O2 -DNDEBUG
 CFLAGS_DEBUG := -ggdb -g3 -O0 -DDEBUG
 

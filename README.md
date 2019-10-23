@@ -4,13 +4,19 @@ CHIP-8 emulator with a debug server
 # Building
 
 The only dependency is `glfw`.  
-Currently only tested under GNU/Linux.  
+Not very tested under Windows, so be wary.  
 
 To build a debug build:  
 `make debug`
 
 To build a release build:  
 `make release`
+
+To build under Windows:
+`make -f Makefile.win`
+
+To cross-compile for Windows
+`make -f Makefile.win CC=x86_64-w64-mingw32-gcc`
 
 # Usage
 

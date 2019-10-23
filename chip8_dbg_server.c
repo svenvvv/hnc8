@@ -22,9 +22,14 @@
 #include <stdarg.h>
 #include <string.h>
 #include <stdbool.h>
-#include <netinet/in.h>
 #include <unistd.h>
 #include <errno.h>
+
+#ifdef __linux__
+#   include <netinet/in.h>
+#elif defined(_WIN32)
+#   include <winsock2.h>
+#endif
 
 #include "log.h"
 #include "chip8.h"
@@ -646,7 +651,11 @@ void dbg_server_loop(uint16_t port)
 
     LOG("Debug server listening on localhost:%i\n", port);
 
+#ifdef __linux__
     unsigned int len = sizeof(cli);
+#elif defined(_WIN32)
+    int len = sizeof(cli);
+#endif
 
     /* reset emu */
     ch8_init(&g_vm);

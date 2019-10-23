@@ -17,14 +17,15 @@
  */
 
 #include "file.h"
-
 #include <stdio.h>
+#include "log.h"
+
+#ifdef __linux__
+
 #include <sys/mman.h>   // mmap()
 #include <sys/stat.h>   // fstat()
 #include <fcntl.h>      // open()
 #include <unistd.h>     // close()
-
-#include "log.h"
 
 int load_file(const char *filename, uint16_t **ptr, size_t *size)
 {
@@ -53,3 +54,38 @@ void unload_file(uint16_t *ptr, size_t sz)
 {
     munmap(ptr, sz);
 }
+
+#elif defined(_WIN32)
+
+#include <stdlib.h>
+
+int load_file(const char *filename, uint16_t **ptr, size_t *size)
+{
+    FILE *f = fopen(filename, "rb");
+    if(f == NULL) {
+        LOG_ERROR("Error reading input file\n");
+        return 1;
+    }
+
+    fseek(f, 0, SEEK_END);
+    *size = ftell(f);
+    fseek(f, 0, SEEK_SET);
+
+    *ptr = malloc(*size + 1);
+    if(*ptr == NULL) {
+        LOG_ERROR("Error allocating memory\n");
+        return 1;
+    }
+
+    fread(*ptr, 1, *size, f);
+    fclose(f);
+
+    return 0;
+}
+
+void unload_file(uint16_t *ptr, size_t sz)
+{
+    free(ptr);
+}
+
+#endif
