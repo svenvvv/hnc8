@@ -53,6 +53,7 @@ void ch8_init(ch8_t *vm)
     memcpy(vm->ram, builtin_font, FONT_SZ);
 
     vm->pc = VM_EXEC_START_ADDR;
+    vm->vram_updated = false;
 
     /* Seed rand() for RND opcode */
     srand(time(NULL));
@@ -79,6 +80,8 @@ void ch8_tick(ch8_t *vm)
 
     uint16_t opcode = ch8_get_op(vm);
     ch8_exec(vm, opcode);
+
+    vm->pc += 2;
 }
 
 void ch8_tick_timers(ch8_t *vm)

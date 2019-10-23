@@ -200,7 +200,6 @@ static int cmd_continue(int sockfd, lex_t *argv, int argc)
 
     for(;;) {
         ch8_tick(&g_vm);
-        g_vm.pc += 2;
 
         for(uint8_t i = 0; i < g_bpoints_count; ++i) {
             if(g_vm.pc == g_bpoints[i]) {
@@ -481,6 +480,27 @@ static int cmd_disassemble(int sockfd, lex_t *argv, int argc)
     return 0;
 }
 
+static int cmd_screen(int sockfd, lex_t *argv, int argc)
+{
+    const char *border = "════════════════════════════════════════════════════════════════";
+    for(uint8_t y = 0; y < VM_SCREEN_HEIGHT; ++y) {
+        if(y == 0) {
+            tx_printf(sockfd, "╔%s╗\n", border);
+        }
+        tx_printf(sockfd, "║");
+
+
+        for(uint8_t x = 0; x < VM_SCREEN_WIDTH; ++x) {
+            uint8_t value = g_vm.vram[x + (y * VM_SCREEN_WIDTH)];
+            char val = value > 0 ? 'X' : ' ';
+            tx_printf(sockfd, "%c", val);
+        }
+
+        tx_printf(sockfd, "║\n");
+    }
+    tx_printf(sockfd, "╚%s╝\n", border);
+}
+
 /*
  * only one prototyped because we need to read the list we are pointing
  * to this from :)
@@ -506,7 +526,8 @@ static const command_t commands[] = {
     DEF_CMD("registers",    "r",    cmd_registers,    "[register] [value] - Display and edit VM registers"),
     DEF_CMD("setkey",       "sk",   cmd_setkey,       "keynum - Toggle a keypad key state"),
     DEF_CMD("keys",         "k",    cmd_keys,         "- Display keypad state"),
-    DEF_CMD("disassemble",  "da",   cmd_disassemble,  "[count] [offset] - Disassemble opcodes")
+    DEF_CMD("disassemble",  "da",   cmd_disassemble,  "[count] [offset] - Disassemble opcodes"),
+    DEF_CMD("screen",       "scr",  cmd_screen,       "- Display screen contents")
 };
 #define commands_count (sizeof(commands) / sizeof(commands[0]))
 

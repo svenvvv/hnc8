@@ -20,6 +20,7 @@
 #define CHIP8_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 
 #define VM_EXEC_START_ADDR  0x200
@@ -42,6 +43,7 @@ typedef struct {
     uint8_t tim_delay;
     uint8_t tim_sound;
     /* Memory */
+    bool vram_updated;
     uint8_t vram[VM_SCREEN_WIDTH * VM_SCREEN_HEIGHT];
     uint8_t ram[VM_RAM_SIZE];
 } ch8_t;
