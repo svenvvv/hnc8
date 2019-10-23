@@ -499,6 +499,8 @@ static int cmd_screen(int sockfd, lex_t *argv, int argc)
         tx_printf(sockfd, "║\n");
     }
     tx_printf(sockfd, "╚%s╝\n", border);
+
+    return 0;
 }
 
 /*
@@ -526,7 +528,7 @@ static const command_t commands[] = {
     DEF_CMD("registers",    "r",    cmd_registers,    "[register] [value] - Display and edit VM registers"),
     DEF_CMD("setkey",       "sk",   cmd_setkey,       "keynum - Toggle a keypad key state"),
     DEF_CMD("keys",         "k",    cmd_keys,         "- Display keypad state"),
-    DEF_CMD("disassemble",  "da",   cmd_disassemble,  "[count] [offset] - Disassemble opcodes"),
+    DEF_CMD("disassemble",  "da",   cmd_disassemble,  "[count] [address] - Disassemble opcodes"),
     DEF_CMD("screen",       "scr",  cmd_screen,       "- Display screen contents")
 };
 #define commands_count (sizeof(commands) / sizeof(commands[0]))
