@@ -44,6 +44,8 @@ Disassembler options:\n\
 
 const char *usage_emu = "\
 Emulator options:\n\
+\t-f INT\t\tclock multiplier for core\n\
+\t-s DBL\t\tdisplay scale multiplier\n\
 \n";
 
 const char *usage_server = "\
@@ -86,8 +88,9 @@ int main(int argc, char **argv)
     bool opt_da_instr = false;
     int opt_dbg_port = 8888;
     double opt_emu_scale = 10.0;
+    int opt_emu_freq_mult = 2;
 
-    while((opt = getopt(argc, argv, "hvm:aip:s:")) != -1) {
+    while((opt = getopt(argc, argv, "hvm:aip:s:f:")) != -1) {
         switch(opt) {
             /* General options */
             case ':':
@@ -138,6 +141,10 @@ int main(int argc, char **argv)
                 opt_emu_scale = strtod(optarg, NULL);
                 LOG_DEBUG("Scale set to %f\n", opt_emu_scale);
                 break;
+            case 'f':
+                opt_emu_freq_mult = strtol(optarg, NULL, 10);
+                LOG_DEBUG("Frequency multiplier set to %d\n", opt_emu_scale);
+                break;
         }
     }
 
@@ -175,7 +182,7 @@ int main(int argc, char **argv)
             }
             break;
         case MODE_EMULATOR:
-            emu_loop(input_mem, input_sz, opt_emu_scale);
+            emu_loop(input_mem, input_sz, opt_emu_scale, opt_emu_freq_mult);
             break;
         case MODE_DEBUG:
             LOG_ERROR("this should not happen\n");

@@ -21,6 +21,6 @@
 
 #include <stdint.h>
 
-void emu_loop(const uint16_t *rom, uint16_t rom_sz, double scale);
+void emu_loop(const uint16_t *rom, uint16_t rom_sz, double scale, int freq_mult);
 
 #endif // CHIP8_EMU_H

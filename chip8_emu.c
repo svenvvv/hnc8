@@ -35,6 +35,9 @@ static GLuint g_fb_id;
 static uint16_t g_w, g_h;
 static ch8_t g_vm;
 
+static bool g_turbo_mode = false;
+static bool g_reset = false;
+
 static void set_key(uint8_t i, uint8_t state)
 {
     g_vm.keys[i] = state;
@@ -94,6 +97,16 @@ static void win_key_callback(GLFWwindow* window, int key, int scancode, int acti
             break;
         case GLFW_KEY_V:
             set_key(0xF, state);
+            break;
+
+        case GLFW_KEY_TAB:
+            g_turbo_mode = state;
+            break;
+        case GLFW_KEY_ESCAPE:
+            glfwSetWindowShouldClose(g_win, 1);
+            break;
+        case GLFW_KEY_F5:
+            g_reset = true;
             break;
         default:
             break;
@@ -162,7 +175,7 @@ static void win_render(void)
     glfwSwapBuffers(g_win);
 }
 
-void emu_loop(const uint16_t *rom, uint16_t rom_sz, double scale)
+void emu_loop(const uint16_t *rom, uint16_t rom_sz, double scale, int freq_mult)
 {
     g_w = VM_SCREEN_WIDTH * scale;
     g_h = VM_SCREEN_HEIGHT * scale;
@@ -179,11 +192,18 @@ void emu_loop(const uint16_t *rom, uint16_t rom_sz, double scale)
 
         glfwPollEvents();
 
+        if(g_reset) {
+            ch8_load(&g_vm, rom, rom_sz);
+            g_reset = false;
+        }
+
         uint16_t op = ch8_get_op(&g_vm);
         printf("%s\n", ch8_disassemble(op));
 
-        ch8_tick(&g_vm);
         ch8_tick_timers(&g_vm);
+        for(uint8_t i = 0; i < (freq_mult * (g_turbo_mode ? 10 : 1)); ++i) {
+            ch8_tick(&g_vm);
+        }
 
         if(g_vm.vram_updated) {
             /* update framebuffer */
