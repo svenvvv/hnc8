@@ -72,7 +72,7 @@ int main(void)
             name = "CLS";
 
             const size_t vr_sz = VM_SCREEN_WIDTH * VM_SCREEN_HEIGHT;
-            memset(vm.vram, 0xFF, vr_sz);
+            memset(vm.vram, 0, vr_sz);
             ch8_exec(&vm, 0x00E0);
 
             EXPECT(memcmp(vm.vram, ram_zero, vr_sz) == 0);
@@ -96,7 +96,7 @@ int main(void)
             name = "JP";
             ch8_exec(&vm, 0x1123);
 
-            EXPECT(vm.pc == 0x123);
+            EXPECT(vm.pc == 0x123 - 2);
         );
     }
 
@@ -110,7 +110,7 @@ int main(void)
 
             EXPECT(vm.sp == 1);
             EXPECT(vm.stack[0] == 0xBEEF);
-            EXPECT(vm.pc == 0xFFF);
+            EXPECT(vm.pc == 0xFFF - 2);
         );
     }
 
@@ -340,7 +340,7 @@ int main(void)
             vm.v[0] = 0xFF;
             ch8_exec(&vm, 0xBB00);
 
-            EXPECT(vm.pc == 0xBFF);
+            EXPECT(vm.pc == 0xBFF - 2);
         );
     }
 
@@ -471,8 +471,8 @@ int main(void)
             strncpy((char*)vm.v, "hello chip8", 12);
             ch8_exec(&vm, 0xFC55);
 
-            EXPECT(strncmp((char*)vm.ram, "hello chip8", 12) == 0);
-            EXPECT(memcmp(vm.ram + 12, ram_zero, VM_RAM_SIZE - 12) == 0);
+            EXPECT(strncmp((char*)vm.ram, "hello chip8", 13) == 0);
+            EXPECT(memcmp(vm.ram + 13, ram_zero, VM_RAM_SIZE - 13) == 0);
         );
 
         TEST(
@@ -482,8 +482,8 @@ int main(void)
             strncpy((char*)vm.ram, "hello chip8", 12);
             ch8_exec(&vm, 0xFC65);
 
-            EXPECT(strncmp((char*)vm.v, "hello chip8", 12) == 0);
-            EXPECT(memcmp(vm.v + 12, ram_zero, 6) == 0);
+            EXPECT(strncmp((char*)vm.v, "hello chip8", 13) == 0);
+            EXPECT(memcmp(vm.v + 13, ram_zero, 5) == 0);
         );
     }
 
