@@ -277,13 +277,13 @@ static void ops_xF(ch8_t *vm, uint16_t opcode)
         case 0x33:
             vm->ram[vm->i] = vm->v[reg] / 100;
             vm->ram[vm->i + 1] = (vm->v[reg] / 10) % 10;
-            vm->ram[vm->i + 2] = (vm->v[reg] % 100) % 10;
+            vm->ram[vm->i + 2] = vm->v[reg] % 10;
             break;
         case 0x55:
-            memcpy(vm->ram + vm->i, vm->v, reg);
+            memcpy(vm->ram + vm->i, vm->v, reg + 1);
             break;
         case 0x65:
-            memcpy(vm->v, vm->ram + vm->i, reg);
+            memcpy(vm->v, vm->ram + vm->i, reg + 1);
             break;
         default:
             UNKNOWN_OP(opcode);
