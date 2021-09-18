@@ -1,6 +1,15 @@
 # hnc8
 CHIP-8 emulator with a debug server
 
+# Background
+
+I wrote this back in 2019 as a course project so I'd be allowed to skip a very
+basic class on C programming.
+I might've overdone it a bit on the complexity of my little "C 101" course project :)).
+
+It builds and the code doesn't look too horrible, so I'm taking it over from my
+old and lost github account for preservation.
+
 # Building
 
 The only dependency is `glfw`.  
