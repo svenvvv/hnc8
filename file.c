@@ -74,6 +74,7 @@ int load_file(const char *filename, uint16_t **ptr, size_t *size)
     *ptr = malloc(*size + 1);
     if(*ptr == NULL) {
         LOG_ERROR("Error allocating memory\n");
+        fclose(f);
         return 1;
     }
 
